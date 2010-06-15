@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%" height="100%"
+		 initialize="onInit(event);"
+		 creationComplete="onCreationComplete(event);">
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.formatters.DateFormatter;
+			import mx.formatters.NumberFormatter;
+			
+			[Bindable] private var filesDP:ArrayCollection;
+			private var outputFile:File;
+			private var inputFile:File;
+			private var relativePath:String;
+			private var dateFormatter:DateFormatter;
+			private var numberFormatter:NumberFormatter;
+			
+			private function onInit(e:Event):void
+			{
+				this.outputFile = File.desktopDirectory;
+				this.inputFile = File.desktopDirectory;
+				this.outputFile.addEventListener(Event.SELECT, onOutputDirectorySelected);
+				this.inputFile.addEventListener(FileListEvent.SELECT_MULTIPLE, onInputFilesSelected);
+				this.dateFormatter = new DateFormatter();
+				this.dateFormatter.formatString = "MMM D, YYYY L:NN A";
+				this.numberFormatter = new NumberFormatter();
+				this.filesDP = new ArrayCollection();
+			}
+			
+			private function onCreationComplete(e:Event):void
+			{
+				this.validateArchiveButton();
+			}
+			
+			private function onDragOver(e:NativeDragEvent):void
+			{
+				if (!e.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)) return;
+				NativeDragManager.acceptDragDrop(this.archiveFileGrid);
+			}
+			
+			private function onDragDrop(e:NativeDragEvent):void
+			{
+				this.processIncomingFiles(e.clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array);
+			}
+			
+			private function onClickOutputPath(e:MouseEvent):void
+			{
+				this.outputFile.browseForDirectory("Where do you want to save your zip file?");
+			}
+			
+			private function flattenDirectoryStructure(files:Array, flatFiles:Array):void
+			{
+				for each (var f:File in files)
+				{
+					if (f.isDirectory)
+					{
+						this.flattenDirectoryStructure(f.getDirectoryListing(), flatFiles);
+					}
+					else
+					{
+						flatFiles.push(f);
+					}
+				}
+			}
+			
+			private function onOutputDirectorySelected(e:Event):void
+			{
+				this.outputPathLabel.text = this.outputFile.nativePath;
+				this.validateArchiveButton();
+			}
+			
+			private function onAddFiles(e:MouseEvent):void
+			{
+				this.inputFile.browseForOpenMultiple("Pick files to add to your archive");
+			}
+			
+			private function processIncomingFiles(files:Array):void
+			{
+				var allFiles:Array = new Array();
+				this.findRelativePath(files);
+				this.flattenDirectoryStructure(files, allFiles);
+				this.filesDP = new ArrayCollection(allFiles);
+				this.validateArchiveButton();
+			}
+			
+			private function onInputFilesSelected(e:FileListEvent):void
+			{
+				this.processIncomingFiles(e.files);
+			}
+			
+			private function findRelativePath(files:Array):void
+			{
+				var depth:int = -1;
+				var thisDepth:int = -1;
+				for each (var f:File in files)
+				{
+					thisDepth = f.nativePath.split(File.separator).length;
+					if (thisDepth < depth || depth == -1)
+					{
+						depth = thisDepth;
+						this.relativePath = f.parent.nativePath;
+					}
+				}
+			}
+			
+			private function getFileNameLabel(item:Object, column:DataGridColumn):String
+			{
+				var nativePath:String = item.nativePath as String;
+				return nativePath.substring(this.relativePath.length + 1, nativePath.length);
+			}
+			
+			private function getFileSizeLabel(item:Object, column:DataGridColumn):String
+			{
+				var size:Number = Number(item.size);
+				var units:String;
+				var test:Number = 1024;
+				if (size < test)
+				{
+					units = "B";
+				}
+				else if (size < (test *= 1024))
+				{
+					units = "KB";
+				}
+				else if (size < (test *= 1024))
+				{
+					units = "MB";
+				}
+				else if (size < (test *= 1024))
+				{
+					units = "GB";
+				}
+				
+				return (this.numberFormatter.format(Math.round(size/(test/1024))) + units);
+			}			
+			
+			private function getFileDateLabel(item:Object, column:DataGridColumn):String
+			{
+				return this.dateFormatter.format(item.creationDate);
+			}
+			
+			private function onClear(e:MouseEvent):void
+			{
+				this.relativePath = null;
+				this.filesDP.removeAll();
+				this.validateArchiveButton();
+			}
+			
+			private function validateArchiveButton():void
+			{
+				this.createArchiveButton.enabled = (this.filesDP.length > 0 && this.outputPathLabel.text.length > 0);
+			}
+			
+			private function onCreateArchive(e:MouseEvent):void
+			{
+				
+			}
+			
+		]]>
+	</fx:Script>	
+	
+	<s:Label text="Select files to archive, or drag and drop from the operating system." y="10" width="355" horizontalCenter="0" fontWeight="bold"/>
+	<s:Label text="Add Files to Your Archive" y="38" left="5"/>
+	<mx:DataGrid id="archiveFileGrid" height="150" right="5" left="5" y="62" dataProvider="{filesDP}" nativeDragOver="onDragOver(event);" nativeDragDrop="onDragDrop(event);">
+		<mx:columns>
+			<mx:DataGridColumn headerText="File Name" labelFunction="getFileNameLabel"/>
+			<mx:DataGridColumn headerText="File Size" labelFunction="getFileSizeLabel"/>
+			<mx:DataGridColumn headerText="Creation Date" labelFunction="getFileDateLabel"/>
+		</mx:columns>
+	</mx:DataGrid>
+
+	<s:HGroup right="5" x="469" y="220">
+		<s:Button label="Add Files..." click="onAddFiles(event);"/>
+		<s:Button label="Clear" click="onClear(event);"/>
+		<s:Button label="Create Archive" id="createArchiveButton" click="onCreateArchive(event);"/>
+	</s:HGroup>
+	
+	<s:Line left="15" right="15" y="262">
+		<s:stroke>
+			<s:SolidColorStroke weight="1" color="0x252525"/>
+		</s:stroke>
+	</s:Line>
+
+	<s:Label text="Pick an Output Directory" y="281" left="5"/>
+	<s:HGroup width="100%" y="303" right="5" left="5" verticalAlign="middle">
+		<s:Button label="Browse..." click="onClickOutputPath(event);"/>
+		<s:Label id="outputPathLabel" right="5"/>
+	</s:HGroup>
+	
+	<s:Line left="18" right="18" y="340">
+		<s:stroke>
+			<s:SolidColorStroke weight="1" color="0x252525"/>
+		</s:stroke>
+	</s:Line>
+	
+	<s:Label y="355" text="Stats" left="5"/>
+	
+</s:Group>
