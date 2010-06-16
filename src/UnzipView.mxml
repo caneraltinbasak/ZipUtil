@@ -1,9 +1,163 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
 		 xmlns:s="library://ns.adobe.com/flex/spark" 
-		 xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="300">
-	<fx:Declarations>
-		<!-- Place non-visual elements (e.g., services, value objects) here -->
-	</fx:Declarations>
-	<s:Label text="UnzipView"/>
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%" height="100%" initialize="onInit(event);">
+	<fx:Script>
+		<![CDATA[
+			import deng.fzip.FZip;
+			import deng.fzip.FZipEvent;
+			import deng.fzip.FZipFile;
+			
+			import mx.collections.ArrayCollection;
+			
+			private var inputFile:File;
+			private var outputFile:File;
+			private var fileFilters:Array;
+			private var stringFormatter:StringFormatter;
+			private var startTime:Number;
+			private var totalFilesSize:Number;
+			
+			[Bindable] private var filesDP:ArrayCollection;
+			
+			private function onInit(e:Event):void
+			{
+				this.stringFormatter = new StringFormatter();
+				this.inputFile = File.desktopDirectory;
+				this.inputFile.addEventListener(Event.SELECT, onZipLocated);
+				this.outputFile = File.desktopDirectory;
+				this.outputFile.addEventListener(Event.SELECT, onOutputDirectorySelected);
+				this.fileFilters = [new FileFilter("Archives", "*.zip")];
+				this.validateUnzipButton();
+			}
+			
+			private function validateUnzipButton():void
+			{
+				this.unzipButton.enabled = (this.zipPathLabel.text.length > 0 && this.outputPathLabel.text.length > 0);
+			}
+			
+			private function onLocateZip(e:MouseEvent):void
+			{
+				this.inputFile.browseForOpen("Pick your zip file", this.fileFilters);
+			}
+			
+			private function onZipLocated(e:Event):void
+			{
+				this.zipPathLabel.text = this.inputFile.nativePath;
+				this.archiveSizeLabel.text = this.stringFormatter.getFormattedFileSize(this.inputFile.size);
+				this.validateUnzipButton();
+			}
+			
+			private function onLocateOutputDirectory(e:MouseEvent):void
+			{
+				this.outputFile.browseForDirectory("Pick your output directory");
+			}
+			
+			private function onOutputDirectorySelected(e:Event):void
+			{
+				this.outputPathLabel.text = this.outputFile.nativePath;
+				this.validateUnzipButton();
+			}
+			
+			private function onClear(e:MouseEvent):void
+			{
+				this.zipPathLabel.text = "";
+				this.outputPathLabel.text = "";
+				this.filesDP.removeAll();
+				this.totalFilesLabel.text = "";
+				this.totalFilesSizeLabel.text = "";
+				this.archiveSizeLabel.text = "";
+				this.archiveTimeLabel.text = "";
+			}
+
+			private function onUnzip(e:MouseEvent):void
+			{
+				this.filesDP = new ArrayCollection();
+				this.totalFilesSize = 0;
+				this.startTime = new Date().time;
+				var zipFileBytes:ByteArray = new ByteArray();
+				var fs:FileStream = new FileStream();
+				fs.open(this.inputFile, FileMode.READ);
+				fs.readBytes(zipFileBytes);
+				fs.close();
+				var fzip:FZip = new FZip();
+				fzip.addEventListener(FZipEvent.FILE_LOADED, onFileLoaded);
+				fzip.addEventListener(Event.COMPLETE, onUnzipComplete);
+				fzip.loadBytes(zipFileBytes);
+			}
+			
+			private function onFileLoaded(e:FZipEvent):void
+			{
+				var fzf:FZipFile = e.file;
+				if (fzf.sizeUncompressed == 0) return;
+				var fileData:Object = new Object();
+				fileData.name = fzf.filename;
+				fileData.compressedSize = this.stringFormatter.getFormattedFileSize(fzf.sizeCompressed);
+				fileData.uncompressedSize = this.stringFormatter.getFormattedFileSize(fzf.sizeUncompressed);
+				this.totalFilesSize += fzf.sizeUncompressed;
+				fileData.date = this.stringFormatter.getFormattedDate(fzf.date);
+				this.filesDP.addItem(fileData);
+				var f:File = this.outputFile.resolvePath(fzf.filename);
+				var fs:FileStream = new FileStream();
+				fs.open(f, FileMode.WRITE);
+				fs.writeBytes(fzf.content);
+				fs.close();
+			}
+			
+			private function onUnzipComplete(e:Event):void
+			{
+				var fzip:FZip = e.target as FZip;
+				fzip.removeEventListener(FZipEvent.FILE_LOADED, onFileLoaded);
+				fzip.removeEventListener(Event.COMPLETE, onUnzipComplete);
+				this.totalFilesSizeLabel.text = this.stringFormatter.getFormattedFileSize(this.totalFilesSize);
+				this.archiveTimeLabel.text = (new Date().time - this.startTime) + " milliseconds";
+			}
+		]]>
+	</fx:Script>
+	<s:Label text="Locate Your Zip File" y="12" fontWeight="bold" left="10"/>
+	<s:HGroup left="10" right="10" y="31" verticalAlign="middle">
+		<s:Button label="Browse..." click="onLocateZip(event);"/>
+		<s:Label id="zipPathLabel" y="64" width="100%" right="5"/>
+	</s:HGroup>
+
+	<mx:HRule  left="18" right="18" y="68"/>
+
+	<s:Label y="81" text="Select an Output Location" fontWeight="bold" left="10"/>
+	<s:HGroup left="10" right="10" y="100" verticalAlign="middle">
+		<s:Button label="Browse..." click="onLocateOutputDirectory(event);"/>
+		<s:Label id="outputPathLabel" y="64" width="100%" right="5"/>
+	</s:HGroup>
+	<s:Label y="160" text="Output Files" fontWeight="bold" left="10"/>
+
+	<s:HGroup y="136" horizontalCenter="0">
+		<s:Button id="unzipButton" label="Unzip!" click="onUnzip(event);"/>
+		<s:Button id="clearButton" label="Clear" click="onClear(event);"/>
+	</s:HGroup>
+	
+	<mx:DataGrid id="fileGrid" height="150" right="10" left="10" y="179" dataProvider="{filesDP}">
+		<mx:columns>
+			<mx:DataGridColumn headerText="File Name" dataField="name"/>
+			<mx:DataGridColumn headerText="Zipped Size" width="92" dataField="compressedSize"/>
+			<mx:DataGridColumn headerText="Unzipped Size" width="92" dataField="uncompressedSize"/>
+			<mx:DataGridColumn headerText="Creation Date" width="140" dataField="date"/>
+		</mx:columns>
+	</mx:DataGrid>
+
+	<s:Label y="345" text="Stats" left="10" fontWeight="bold"/>
+	
+	<mx:Form left="20" y="355">
+		<mx:FormItem label="Total Number of Files:">
+			<s:Label id="totalFilesLabel" text="{this.filesDP.length}"/>
+		</mx:FormItem>
+		<mx:FormItem label="Total Size of All Files:">
+			<s:Label id="totalFilesSizeLabel"/>
+		</mx:FormItem>
+		<mx:FormItem label="Archive Size:">
+			<s:Label id="archiveSizeLabel"/>
+		</mx:FormItem>
+		<mx:FormItem label="Total Unzip Time:">
+			<s:Label id="archiveTimeLabel"/>
+		</mx:FormItem>
+	</mx:Form>
+
 </s:Group>

@@ -3,36 +3,29 @@
 		 xmlns:s="library://ns.adobe.com/flex/spark" 
 		 xmlns:mx="library://ns.adobe.com/flex/mx"
 		 width="100%" height="100%"
-		 initialize="onInit(event);"
-		 creationComplete="onCreationComplete(event);">
+		 initialize="onInit(event);">
 	
 	<fx:Script>
 		<![CDATA[
+			import deng.fzip.FZip;
 			import mx.collections.ArrayCollection;
-			import mx.formatters.DateFormatter;
-			import mx.formatters.NumberFormatter;
 			
 			[Bindable] private var filesDP:ArrayCollection;
+			
 			private var outputFile:File;
 			private var inputFile:File;
 			private var relativePath:String;
-			private var dateFormatter:DateFormatter;
-			private var numberFormatter:NumberFormatter;
+			private var stringFormatter:StringFormatter;
 			
 			private function onInit(e:Event):void
 			{
+				this.stringFormatter = new StringFormatter();
 				this.outputFile = File.desktopDirectory;
 				this.inputFile = File.desktopDirectory;
 				this.outputFile.addEventListener(Event.SELECT, onOutputDirectorySelected);
 				this.inputFile.addEventListener(FileListEvent.SELECT_MULTIPLE, onInputFilesSelected);
-				this.dateFormatter = new DateFormatter();
-				this.dateFormatter.formatString = "MMM D, YYYY L:NN A";
-				this.numberFormatter = new NumberFormatter();
+				this.inputFile.addEventListener(Event.SELECT, onInputDirectorySelected);
 				this.filesDP = new ArrayCollection();
-			}
-			
-			private function onCreationComplete(e:Event):void
-			{
 				this.validateArchiveButton();
 			}
 			
@@ -49,7 +42,7 @@
 			
 			private function onClickOutputPath(e:MouseEvent):void
 			{
-				this.outputFile.browseForDirectory("Where do you want to save your zip file?");
+				this.outputFile.browseForSave("Where do you want to save your zip file?");
 			}
 			
 			private function flattenDirectoryStructure(files:Array, flatFiles:Array):void
@@ -75,7 +68,14 @@
 			
 			private function onAddFiles(e:MouseEvent):void
 			{
-				this.inputFile.browseForOpenMultiple("Pick files to add to your archive");
+				if (e.target == this.addFilesButton)
+				{
+					this.inputFile.browseForOpenMultiple("Pick files to add to your archive");
+				}
+				else
+				{
+					this.inputFile.browseForDirectory("Pick a directory to add to your archive");
+				}
 			}
 			
 			private function processIncomingFiles(files:Array):void
@@ -90,6 +90,11 @@
 			private function onInputFilesSelected(e:FileListEvent):void
 			{
 				this.processIncomingFiles(e.files);
+			}
+			
+			private function onInputDirectorySelected(e:Event):void
+			{
+				this.processIncomingFiles([this.inputFile]);
 			}
 			
 			private function findRelativePath(files:Array):void
@@ -109,38 +114,22 @@
 			
 			private function getFileNameLabel(item:Object, column:DataGridColumn):String
 			{
-				var nativePath:String = item.nativePath as String;
-				return nativePath.substring(this.relativePath.length + 1, nativePath.length);
+				return this.getRelativeFileName(item as File);
+			}
+			
+			private function getRelativeFileName(f:File):String
+			{
+				return f.nativePath.substring(this.relativePath.length + 1, f.nativePath.length);
 			}
 			
 			private function getFileSizeLabel(item:Object, column:DataGridColumn):String
 			{
-				var size:Number = Number(item.size);
-				var units:String;
-				var test:Number = 1024;
-				if (size < test)
-				{
-					units = "B";
-				}
-				else if (size < (test *= 1024))
-				{
-					units = "KB";
-				}
-				else if (size < (test *= 1024))
-				{
-					units = "MB";
-				}
-				else if (size < (test *= 1024))
-				{
-					units = "GB";
-				}
-				
-				return (this.numberFormatter.format(Math.round(size/(test/1024))) + units);
-			}			
+				return this.stringFormatter.getFormattedFileSize(Number(item.size));
+			}
 			
 			private function getFileDateLabel(item:Object, column:DataGridColumn):String
 			{
-				return this.dateFormatter.format(item.creationDate);
+				return this.stringFormatter.getFormattedDate(item.creationDate);
 			}
 			
 			private function onClear(e:MouseEvent):void
@@ -157,46 +146,74 @@
 			
 			private function onCreateArchive(e:MouseEvent):void
 			{
-				
+				var zip:FZip = new FZip();
+				var totalFileSize:Number = 0;
+				for each (var f:File in this.filesDP)
+				{
+					totalFileSize += f.size;
+					var fs:FileStream = new FileStream();
+					fs.open(f, FileMode.READ);
+					var fileBytes:ByteArray = new ByteArray();
+					fs.readBytes(fileBytes);
+					fs.close();
+					zip.addFile(this.getRelativeFileName(f), fileBytes);
+				}
+				var saveFile:File = new File(this.outputPathLabel.text);
+				var outFS:FileStream = new FileStream();
+				outFS.open(saveFile, FileMode.WRITE);
+				var startTime:Number = new Date().time;
+				zip.serialize(outFS);
+				archiveTimeLabel.text = (new Date().time - startTime) + " milliseconds";
+				outFS.close();
+				totalFilesSizeLabel.text = this.stringFormatter.getFormattedFileSize(totalFileSize);
+				archiveSizeLabel.text = this.stringFormatter.getFormattedFileSize(saveFile.size);
 			}
 			
 		]]>
 	</fx:Script>	
 	
-	<s:Label text="Select files to archive, or drag and drop from the operating system." y="10" width="355" horizontalCenter="0" fontWeight="bold"/>
-	<s:Label text="Add Files to Your Archive" y="38" left="5"/>
-	<mx:DataGrid id="archiveFileGrid" height="150" right="5" left="5" y="62" dataProvider="{filesDP}" nativeDragOver="onDragOver(event);" nativeDragDrop="onDragDrop(event);">
+	<s:Label text="Select files to archive, or drag and drop from the operating system." y="10" width="410" horizontalCenter="0" textAlign="center"/>
+	<s:Label text="Add Files to Your Archive" y="38" left="10" fontWeight="bold"/>
+	<mx:DataGrid id="archiveFileGrid" height="150" right="10" left="10" y="62" dataProvider="{filesDP}" nativeDragOver="onDragOver(event);" nativeDragDrop="onDragDrop(event);">
 		<mx:columns>
 			<mx:DataGridColumn headerText="File Name" labelFunction="getFileNameLabel"/>
-			<mx:DataGridColumn headerText="File Size" labelFunction="getFileSizeLabel"/>
-			<mx:DataGridColumn headerText="Creation Date" labelFunction="getFileDateLabel"/>
+			<mx:DataGridColumn headerText="File Size" labelFunction="getFileSizeLabel" width="92"/>
+			<mx:DataGridColumn headerText="Creation Date" labelFunction="getFileDateLabel" width="140"/>
 		</mx:columns>
 	</mx:DataGrid>
 
-	<s:HGroup right="5" x="469" y="220">
-		<s:Button label="Add Files..." click="onAddFiles(event);"/>
+	<s:HGroup right="10" x="469" y="220">
+		<s:Button label="Add Files..." id="addFilesButton" click="onAddFiles(event);"/>
+		<s:Button label="Add Folder..." id="addFolderButton" click="onAddFiles(event);"/>
 		<s:Button label="Clear" click="onClear(event);"/>
 		<s:Button label="Create Archive" id="createArchiveButton" click="onCreateArchive(event);"/>
 	</s:HGroup>
 	
-	<s:Line left="15" right="15" y="262">
-		<s:stroke>
-			<s:SolidColorStroke weight="1" color="0x252525"/>
-		</s:stroke>
-	</s:Line>
-
-	<s:Label text="Pick an Output Directory" y="281" left="5"/>
-	<s:HGroup width="100%" y="303" right="5" left="5" verticalAlign="middle">
+	<mx:HRule  left="15" right="15" y="262"/>
+	
+	<s:Label text="Save Location" y="281" left="10" fontWeight="bold"/>
+	<s:HGroup width="100%" y="303" right="10" left="10" verticalAlign="middle">
 		<s:Button label="Browse..." click="onClickOutputPath(event);"/>
 		<s:Label id="outputPathLabel" right="5"/>
 	</s:HGroup>
 	
-	<s:Line left="18" right="18" y="340">
-		<s:stroke>
-			<s:SolidColorStroke weight="1" color="0x252525"/>
-		</s:stroke>
-	</s:Line>
+	<mx:HRule  left="18" right="18" y="340"/>
+		
+	<s:Label y="355" text="Stats" left="10" fontWeight="bold"/>
 	
-	<s:Label y="355" text="Stats" left="5"/>
+	<mx:Form left="20" y="365">
+		<mx:FormItem label="Total Number of Files:">
+			<s:Label id="totalFilesLabel" text="{this.filesDP.length}"/>
+		</mx:FormItem>
+		<mx:FormItem label="Total Size of All Files:">
+			<s:Label id="totalFilesSizeLabel"/>
+		</mx:FormItem>
+		<mx:FormItem label="Archive Size:">
+			<s:Label id="archiveSizeLabel"/>
+		</mx:FormItem>
+		<mx:FormItem label="Total Archive Time:">
+			<s:Label id="archiveTimeLabel"/>
+		</mx:FormItem>
+	</mx:Form>
 	
 </s:Group>

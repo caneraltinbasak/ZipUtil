@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
 		 xmlns:s="library://ns.adobe.com/flex/spark" 
-		 xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="300">
-	<fx:Declarations>
-		<!-- Place non-visual elements (e.g., services, value objects) here -->
-	</fx:Declarations>
-	<s:Label text="AboutView"/>
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%">
+	<s:TextArea verticalCenter="-50" horizontalCenter="0" width="300" height="165" paragraphSpaceBefore="10" borderVisible="false" editable="false" fontSize="14">
+		<s:p>ZipUtil is a simple utility for zipping and unzipping archives.
+			It was created as a test to see how fast zipping and unzipping could be done in ActionScript
+			(and as a sample Flex/AIR application).</s:p>
+		<s:p>ZipUtil was created by <s:a href="http://www.google.com/profiles/christian.cantrell">Christian Cantrell</s:a>.</s:p>
+		<s:p>ZipUtil uses the <s:a href="http://codeazur.com.br/lab/fzip/">FZip project</s:a>
+			which was created by <s:a href="http://wahlers.com.br/claus/blog/">Claus Wahlers</s:a>
+			and <s:a href="http://blog.brokenfunction.com/">Max Herkender</s:a>.</s:p>
+	</s:TextArea>
 </s:Group>

@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
 					   xmlns:s="library://ns.adobe.com/flex/spark" 
-					   xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:local="*">
-	<fx:Script>
-		<![CDATA[
-			
-		]]>
-	</fx:Script>
-	
+					   xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:local="*"
+					   showStatusBar="false">
+
 	<s:VGroup width="100%" height="100%" horizontalAlign="center" verticalAlign="middle" paddingTop="4">
 		<s:ButtonBar dataProvider="{appViews}" requireSelection="true" /> 
-		<mx:ViewStack id="appViews" borderStyle="solid" width="100%" height="100%"> 
+		<mx:ViewStack id="appViews" width="100%" height="100%"> 
 			<s:NavigatorContent id="search" label="Zip"> 
 				<local:ZipView/>
 			</s:NavigatorContent> 
