@@ -8,6 +8,7 @@
 	<fx:Script>
 		<![CDATA[
 			import deng.fzip.FZip;
+			
 			import mx.collections.ArrayCollection;
 			
 			[Bindable] private var filesDP:ArrayCollection;
@@ -146,6 +147,7 @@
 			
 			private function onCreateArchive(e:MouseEvent):void
 			{
+				var processStartTime:Number = new Date().time;
 				var zip:FZip = new FZip();
 				var totalFileSize:Number = 0;
 				for each (var f:File in this.filesDP)
@@ -161,12 +163,13 @@
 				var saveFile:File = new File(this.outputPathLabel.text);
 				var outFS:FileStream = new FileStream();
 				outFS.open(saveFile, FileMode.WRITE);
-				var startTime:Number = new Date().time;
+				var archiveStartTime:Number = new Date().time;
 				zip.serialize(outFS);
-				archiveTimeLabel.text = (new Date().time - startTime) + " milliseconds";
+				archiveTimeLabel.text = (new Date().time - archiveStartTime) + " milliseconds";
 				outFS.close();
 				totalFilesSizeLabel.text = this.stringFormatter.getFormattedFileSize(totalFileSize);
 				archiveSizeLabel.text = this.stringFormatter.getFormattedFileSize(saveFile.size);
+				processTimeLabel.text = (new Date().time - processStartTime) + " milliseconds";
 			}
 			
 		]]>
@@ -189,19 +192,19 @@
 		<s:Button label="Create Archive" id="createArchiveButton" click="onCreateArchive(event);"/>
 	</s:HGroup>
 	
-	<mx:HRule  left="15" right="15" y="262"/>
+	<mx:HRule  left="15" right="15" y="252"/>
 	
-	<s:Label text="Save Location" y="281" left="10" fontWeight="bold"/>
-	<s:HGroup width="100%" y="303" right="10" left="10" verticalAlign="middle">
+	<s:Label text="Save Location" y="271" left="10" fontWeight="bold"/>
+	<s:HGroup y="293" right="10" left="10" verticalAlign="middle">
 		<s:Button label="Browse..." click="onClickOutputPath(event);"/>
 		<s:Label id="outputPathLabel" right="5"/>
 	</s:HGroup>
 	
-	<mx:HRule  left="18" right="18" y="340"/>
+	<mx:HRule  left="18" right="18" y="330"/>
 		
-	<s:Label y="355" text="Stats" left="10" fontWeight="bold"/>
+	<s:Label y="345" text="Stats" left="10" fontWeight="bold"/>
 	
-	<mx:Form left="20" y="365">
+	<mx:Form left="20" y="355">
 		<mx:FormItem label="Total Number of Files:">
 			<s:Label id="totalFilesLabel" text="{this.filesDP.length}"/>
 		</mx:FormItem>
@@ -213,6 +216,9 @@
 		</mx:FormItem>
 		<mx:FormItem label="Total Archive Time:">
 			<s:Label id="archiveTimeLabel"/>
+		</mx:FormItem>
+		<mx:FormItem label="Total Process Time:">
+			<s:Label id="processTimeLabel"/>
 		</mx:FormItem>
 	</mx:Form>
 	
