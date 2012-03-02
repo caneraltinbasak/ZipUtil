@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" title="About">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<s:TextArea height="187" horizontalCenter="0"
+				text="FreeZip is a free zip/unzip utility.&#xd;You can use and distribute freely.&#xd;Thanks to: &#xd;Christian Cantrell &#xd;(http://www.google.com/profiles/christian.cantrell)&#xd;&#xd;and FZip project&#xd;(http://codeazur.com.br/lab/fzip/)"
+				verticalCenter="1"/>
+
+</s:View>
